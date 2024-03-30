@@ -10,6 +10,8 @@ local output_messages = {}
 
 local function get_team_log()
     --[[
+        Gets all the team chat messages.
+        
         From fuzziqersoftware on psobb disc: 
 
         it appears that team chat messages are at 
@@ -31,14 +33,25 @@ local function get_team_log()
         Soly's pso API (gets auto imported when .lua file in right directory...)
         https://github.com/search?q=repo%3ASolybum%2Fpsobbaddonplugin%20read_u32&type=code 
     ]]
-    -- test code here --
-    -- try to read the first four messages:
-    imgui.Text(pso.read_wstr(0x00A98600+ 0x90*0, 100))
-    imgui.Text(pso.read_wstr(0x00A98600+ 0x90*2, 100))
-    imgui.Text(pso.read_wstr(0x00A98600+ 0x90*4, 100))
-    imgui.Text(pso.read_wstr(0x00A98600+ 0x90*6, 100))
-    imgui.Text('Hello, world!')
+    -- test code for time here 
+    local current_timestamp = os.date("%H:%M:%S", os.time())
+    imgui.Text(current_timestamp)
+
+    -- read 6 messages 
+    for i= 0,10,2 do 
+        imgui.Text(pso.read_wstr(0x00A98600+ 0x90*i, MAX_MSG_SIZE))
+    end
+
+    -- test functions in lua 
+    local ptr = parse_message(pso.read_wstr(0x00A98600+ 0x90*0, 100))
+    imgui.Text(ptr)
 end
+
+
+function parse_message(message)
+    local output = message
+    return output 
+end 
 
 local function present()
     get_team_log()
