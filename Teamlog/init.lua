@@ -2,10 +2,8 @@
 local LOCALES = "EJTK"
 local MSG_MATCH = "^(.-) > \t([" .. LOCALES .. "])(.+)"
 local MSG_REPLACE = "^\t[" .. LOCALES .. "]"
-local QCHAT_MATCH = "^(.-) >( )(.+)$"
-local QCHAT_REPLACE = "(> )\t[" .. LOCALES .. "]"
-local MAX_GAME_LOG = 29 -- max amount of messages the game stores
-local MAX_MSG_SIZE = 100 -- not correct but close enough, character name length seems to affect it
+local MAX_GAME_LOG = 29 -- need to test - supposedly it's 30? TODO
+local MAX_MSG_SIZE = 100 
 local output_messages = {}
 
 local function get_team_log()
@@ -37,19 +35,22 @@ local function get_team_log()
     local current_timestamp = os.date("%H:%M:%S", os.time())
     imgui.Text(current_timestamp)
 
-    -- read 6 messages 
+    -- read few messages
     for i= 0,10,2 do 
-        imgui.Text(pso.read_wstr(0x00A98600+ 0x90*i, MAX_MSG_SIZE))
+        local ptr = pso.read_wstr(0x00A98600+ 0x90*i, MAX_MSG_SIZE)
+        imgui.Text(ptr)
+        -- print repr string
+        imgui.Text(string.format("%q",ptr))
+        imgui.Text(descud_message(ptr))
+        imgui.Text("\n")
     end
-
-    -- test functions in lua 
-    local ptr = parse_message(pso.read_wstr(0x00A98600+ 0x90*0, 100))
-    imgui.Text(ptr)
 end
 
 
-function parse_message(message)
-    local output = message
+function descud_message(message)
+    -- remove the tab + local identifier (\9 = tab in lua)
+    -- TODO: make it work for all languages
+    local output = string.gsub(message, "\9E", "")
     return output 
 end 
 
