@@ -36,16 +36,12 @@ local function get_team_log()
         https://github.com/jtuu/psochatlogaddon/blob/master/Chatlog/init.lua
         Soly's pso API (gets auto imported when .lua file in right directory...)
         https://github.com/search?q=repo%3ASolybum%2Fpsobbaddonplugin%20read_u32&type=code 
-    ]]
-    -- test code for time here 
-    local current_timestamp = os.date("%H:%M:%S", os.time())
-    imgui.Text(current_timestamp)
-    counter = counter + 1 
-    imgui.Text(counter)
 
-    -- above code shows that this body of code runs 30 times a second,
-    -- or once every frame
-    
+        From testing, it looks like this code runs 30 times every second, or...
+        exactly once a frame? 
+    ]]
+
+
     -- constantly check the memory addresses for new messages 
     for i = 0, 58, 2 do -- 30 messages, 0 indexed
         --[[
@@ -56,19 +52,15 @@ local function get_team_log()
             4. Append the element to a growing list. 
             5. (OPTIONAL) add timestamps to each message. 
         ]]
-        -- check if the message has changed: 
-        if chat_memory[i/2+1] ~= descud_message(pso.read_wstr(0x00A98600+ 0x90*i, MAX_MSG_SIZE)) then
-            local timestamped_message = add_timestamp(descud_message(pso.read_wstr(0x00A98600+ 0x90*i, MAX_MSG_SIZE)))
+        -- first read the mem addr for the message
+        local message = descud_message(pso.read_wstr(0x00A98600+ 0x90*i, MAX_MSG_SIZE))
+        -- if the message has changed, add it to the table of ordered messages
+        if chat_memory[i/2+1] ~= message then
+            local timestamped_message = add_timestamp(message)
             table.insert(ordered_messages, timestamped_message)
         end 
-        -- update memory here: 
-        chat_memory[i/2+1] = descud_message(pso.read_wstr(0x00A98600+ 0x90*i, MAX_MSG_SIZE))
-    end
-
-    -- print the chat memory
-    for index, value in ipairs(chat_memory) do
-        imgui.Text(index)
-        imgui.Text(value)
+        -- update memory here after each cycle as last "known"
+        chat_memory[i/2+1] = message
     end
 
     --print the ordered messages
