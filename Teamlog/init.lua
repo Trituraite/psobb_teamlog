@@ -1,10 +1,16 @@
 -- constants from chatlog. Prob will need? TODO: Delete as needed. 
-local LOCALES = "EJTK"
-local MSG_MATCH = "^(.-) > \t([" .. LOCALES .. "])(.+)"
-local MSG_REPLACE = "^\t[" .. LOCALES .. "]"
-local MAX_GAME_LOG = 29 -- need to test - supposedly it's 30? TODO
-local MAX_MSG_SIZE = 100 
-local output_messages = {}
+local LOCALES = "EJTKB"
+local MSG_REPLACE = "\9([" .. LOCALES .. "])"
+local MAX_GAME_LOG = 30 -- need to test - supposedly it's 30? TODO
+local MAX_MSG_SIZE = 100
+local counter = 0 -- use as unique identifier
+local chat_memory = {} -- use as a table 
+local ordered_messages = {} -- messages in order
+
+-- initialize an empty table for the chat memory
+for i = 0, 58, 2 do -- 30 messages, 0 indexed
+    chat_memory[i/2+1] = ""
+end
 
 local function get_team_log()
     --[[
@@ -34,24 +40,56 @@ local function get_team_log()
     -- test code for time here 
     local current_timestamp = os.date("%H:%M:%S", os.time())
     imgui.Text(current_timestamp)
+    counter = counter + 1 
+    imgui.Text(counter)
 
-    -- read few messages
-    for i= 0,10,2 do 
-        local ptr = pso.read_wstr(0x00A98600+ 0x90*i, MAX_MSG_SIZE)
-        imgui.Text(ptr)
-        -- print repr string
-        imgui.Text(string.format("%q",ptr))
-        imgui.Text(descud_message(ptr))
-        imgui.Text("\n")
+    -- above code shows that this body of code runs 30 times a second,
+    -- or once every frame
+    
+    -- constantly check the memory addresses for new messages 
+    for i = 0, 58, 2 do -- 30 messages, 0 indexed
+        --[[
+            --algorithm to go from ring buffer to linear buffer
+            1. Read all thirty messages in a loop
+            2. Insert the messages into a table (key - value)
+            3. If the key's value changes from the previous element:
+            4. Append the element to a growing list. 
+            5. (OPTIONAL) add timestamps to each message. 
+        ]]
+        -- check if the message has changed: 
+        if chat_memory[i/2+1] ~= descud_message(pso.read_wstr(0x00A98600+ 0x90*i, MAX_MSG_SIZE)) then
+            local timestamped_message = add_timestamp(descud_message(pso.read_wstr(0x00A98600+ 0x90*i, MAX_MSG_SIZE)))
+            table.insert(ordered_messages, timestamped_message)
+        end 
+        -- update memory here: 
+        chat_memory[i/2+1] = descud_message(pso.read_wstr(0x00A98600+ 0x90*i, MAX_MSG_SIZE))
     end
+
+    -- print the chat memory
+    for index, value in ipairs(chat_memory) do
+        imgui.Text(index)
+        imgui.Text(value)
+    end
+
+    --print the ordered messages
+    for index, value in ipairs(ordered_messages) do
+        imgui.Text(index)
+        imgui.Text(value)
+    end
+    
 end
 
 
 function descud_message(message)
     -- remove the tab + local identifier (\9 = tab in lua)
-    -- TODO: make it work for all languages
-    local output = string.gsub(message, "\9E", "")
+    local output = string.gsub(message, MSG_REPLACE, "")
     return output 
+end 
+
+function add_timestamp(message)
+    local ts = os.date("%H:%M:%S", os.time())
+    local combined_string = "["..ts .."] " .. message
+    return combined_string
 end 
 
 local function present()
