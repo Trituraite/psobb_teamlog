@@ -272,7 +272,7 @@ function get_last_ten_elements(input_table)
     -- get the last 10 elements of a table
     local length = #input_table
     local result = {}
-    local start_index = math.max(length - 29, 1)
+    local start_index = math.max(length - 99, 1)
     
     for i = start_index, length do
         table.insert(result, input_table[i])
