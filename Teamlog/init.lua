@@ -19,6 +19,42 @@ for i = 0, 58, 2 do -- 30 messages, 0 indexed
 end
 
 -- Helpers in solylib
+local function _getMenuState()
+    local offsets = {
+        0x00A98478,
+        0x00000010,
+        0x0000001E,
+    }
+    local address = 0
+    local value = -1
+    local bad_read = false
+    for k, v in pairs(offsets) do
+        if address ~= -1 then
+            address = pso.read_u32(address + v)
+            if address == 0 then
+                address = -1
+            end
+        end
+    end
+    if address ~= -1 then
+        value = bit.band(address, 0xFFFF)
+    end
+    return value
+end
+local function IsMenuOpen()
+    local menuOpen = 0x43
+    local menuState = _getMenuState()
+    return menuState == menuOpen
+end
+local function IsSymbolChatOpen()
+    local wordSelectOpen = 0x40
+    local menuState = _getMenuState()
+    return menuState == wordSelectOpen
+end
+local function IsMenuUnavailable()
+    local menuState = _getMenuState()
+    return menuState == -1
+end
 local function NotNilOrDefault(value, default)
     if value == nil then
         return default
@@ -88,6 +124,51 @@ local function GetPosBySizeAndAnchor(_x, _y, _w, _h, _anchor)
 end
 -- End of helpers in solylib
 
+if optionsLoaded then
+    -- If options loaded, make sure we have all those we need
+    options.configurationEnableWindow = NotNilOrDefault(options.configurationEnableWindow, true)
+    options.enable                    = NotNilOrDefault(options.enable, true)
+    options.useCustomTheme            = NotNilOrDefault(options.useCustomTheme, false)
+    options.fontScale                 = NotNilOrDefault(options.fontScale, 1.0)
+
+    options.clEnableWindow            = NotNilOrDefault(options.clEnableWindow, true)
+    options.clHideWhenMenu            = NotNilOrDefault(options.clHideWhenMenu, true)
+    options.clHideWhenSymbolChat      = NotNilOrDefault(options.clHideWhenSymbolChat, true)
+    options.clHideWhenMenuUnavailable = NotNilOrDefault(options.clHideWhenMenuUnavailable, true)
+    options.clChanged                 = NotNilOrDefault(options.clChanged, false)
+    options.clAnchor                  = NotNilOrDefault(options.clAnchor, 1)
+    options.clX                       = NotNilOrDefault(options.clX, 50)
+    options.clY                       = NotNilOrDefault(options.clY, 50)
+    options.clW                       = NotNilOrDefault(options.clW, 450)
+    options.clH                       = NotNilOrDefault(options.clH, 350)
+    options.clNoTitleBar              = NotNilOrDefault(options.clNoTitleBar, "")
+    options.clNoResize                = NotNilOrDefault(options.clNoResize, "")
+    options.clNoMove                  = NotNilOrDefault(options.clNoMove, "")
+    options.clTransparentWindow       = NotNilOrDefault(options.clTransparentWindow, false)
+else
+    options =
+    {
+        configurationEnableWindow = true,
+        enable = true,
+        useCustomTheme = false,
+        fontScale = 1.0,
+
+        clEnableWindow = true,
+        clHideWhenMenu = false,
+        clHideWhenSymbolChat = false,
+        clHideWhenMenuUnavailable = false,
+        clChanged = false,
+        clAnchor = 1,
+        clX = 50,
+        clY = 50,
+        clW = 450,
+        clH = 350,
+        clNoTitleBar = "",
+        clNoResize = "",
+        clNoMove = "",
+        clTransparentWindow = false,
+    }
+end
 
 local function SaveOptions(options)
     local file = io.open(optionsFileName, "w")
@@ -102,6 +183,9 @@ local function SaveOptions(options)
         io.write(string.format("    fontScale = %s,\n", tostring(options.fontScale)))
         io.write("\n")
         io.write(string.format("    clEnableWindow = %s,\n", tostring(options.clEnableWindow)))
+        io.write(string.format("    clHideWhenMenu = %s,\n", tostring(options.clHideWhenMenu)))
+        io.write(string.format("    clHideWhenSymbolChat = %s,\n", tostring(options.clHideWhenSymbolChat)))
+        io.write(string.format("    clHideWhenMenuUnavailable = %s,\n", tostring(options.clHideWhenMenuUnavailable)))
         io.write(string.format("    clChanged = %s,\n", tostring(options.clChanged)))
         io.write(string.format("    clAnchor = %i,\n", options.clAnchor))
         io.write(string.format("    clX = %i,\n", options.clX))
@@ -129,7 +213,7 @@ local function get_team_log()
         00A98600, which is a list of 30 char16_t[0x90] 
         buffers
 
-        how tf did he know this? 
+        how did he know this? 
 
         -- Useful info --
         Starting Mem Address: 0x00A98600
@@ -185,7 +269,7 @@ function get_last_ten_elements(input_table)
     -- get the last 10 elements of a table
     local length = #input_table
     local result = {}
-    local start_index = math.max(length - 9, 1)
+    local start_index = math.max(length - 29, 1)
     
     for i = start_index, length do
         table.insert(result, input_table[i])
@@ -227,31 +311,37 @@ local function present()
         return
     end
 
-    if firstPresent or options.clChanged then
-        options.clChanged = false
-        local ps = GetPosBySizeAndAnchor(options.clX, options.clY, options.clW, options.clH, options.clAnchor)
-        imgui.SetNextWindowPos(ps[1], ps[2], "Always");
-        imgui.SetNextWindowSize(options.clW, options.clH, "Always");
-    end
+    if (options.clEnableWindow == true)
+        and (options.clHideWhenMenu == false or IsMenuOpen() == false)
+        and (options.clHideWhenSymbolChat == false or IsSymbolChatOpen() == false)
+        and (options.clHideWhenMenuUnavailable == false or IsMenuUnavailable() == false)
+    then
+        if firstPresent or options.clChanged then
+            options.clChanged = false
+            local ps = GetPosBySizeAndAnchor(options.clX, options.clY, options.clW, options.clH, options.clAnchor)
+            imgui.SetNextWindowPos(ps[1], ps[2], "Always");
+            imgui.SetNextWindowSize(options.clW, options.clH, "Always");
+        end
 
-    if options.clTransparentWindow == true then
-        imgui.PushStyleColor("WindowBg", 0.0, 0.0, 0.0, 0.0)
-    end
+        if options.clTransparentWindow == true then
+            imgui.PushStyleColor("WindowBg", 0.0, 0.0, 0.0, 0.0)
+        end
 
-    if imgui.Begin("Teamlog", nil, { options.clNoTitleBar, options.clNoResize, options.clNoMove }) then
-        imgui.SetWindowFontScale(options.fontScale)
-        get_team_log()
-    end
-    imgui.End()
+        if imgui.Begin("Teamlog", nil, { options.clNoTitleBar, options.clNoResize, options.clNoMove }) then
+            imgui.SetWindowFontScale(options.fontScale)
+            get_team_log()
+        end
+        imgui.End()
 
-    if options.clTransparentWindow == true then
-        imgui.PopStyleColor()
-    end
+        if options.clTransparentWindow == true then
+            imgui.PopStyleColor()
+        end
 
-    if firstPresent then
-        firstPresent = false
-    end
-    --get_team_log()
+        if firstPresent then
+            firstPresent = false
+        end
+        --get_team_log()
+	end
 end
 
 local function init()
