@@ -261,6 +261,10 @@ local function get_team_log()
         last_ten_messages = get_last_ten_elements(ordered_messages)
         for index, value in ipairs(last_ten_messages) do
             imgui.Text(value)
+
+        if scrolldown then
+            imgui.SetScrollY(imgui.GetScrollMaxY())
+        end
         end
     end
 end
@@ -290,7 +294,7 @@ function add_timestamp(message)
     local ts = os.date("%H:%M:%S", os.time())
     local combined_string = "["..ts .."] " .. message
     return combined_string
-end 
+end
 
 local function present()
     -- If the addon has never been used, open the config window
