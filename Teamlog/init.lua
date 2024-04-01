@@ -260,11 +260,10 @@ local function get_team_log()
         -- only if there are messages we attempt to render
         last_ten_messages = get_last_ten_elements(ordered_messages)
         for index, value in ipairs(last_ten_messages) do
-            imgui.Text(value)
-
-        if scrolldown then
-            imgui.SetScrollY(imgui.GetScrollMaxY())
-        end
+            imgui.TextWrapped(value)
+            if scrolldown then
+                imgui.SetScrollY(imgui.GetScrollMaxY())
+            end
         end
     end
 end
@@ -344,7 +343,6 @@ local function present()
         if firstPresent then
             firstPresent = false
         end
-        --get_team_log()
 	end
 end
 
