@@ -6,7 +6,10 @@ return
     fontScale = 1,
 
     clEnableWindow = true,
-    clChanged = true,
+    clHideWhenMenu = false,
+    clHideWhenSymbolChat = false,
+    clHideWhenMenuUnavailable = false,
+    clChanged = false,
     clAnchor = 6,
     clX = 600,
     clY = -200,
@@ -15,5 +18,5 @@ return
     clNoTitleBar = "",
     clNoResize = "",
     clNoMove = "",
-    clTransparentWindow = true,
+    clTransparentWindow = false,
 }

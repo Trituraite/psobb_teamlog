@@ -12,6 +12,7 @@ local MSG_REPLACE = "\9([" .. LOCALES .. "])"
 local MAX_MSG_SIZE = 100
 local chat_memory = {} -- table, stores read msgs from mem
 local ordered_messages = {} -- messages in order
+local prevmaxy = 0
 
 -- initialize an empty table for the chat memory
 for i = 0, 58, 2 do -- 30 messages, 0 indexed
@@ -232,6 +233,14 @@ local function get_team_log()
         exactly once a frame? 
     ]]
 
+    -- scrolling:
+    local sy = imgui.GetScrollY()
+    local sym = imgui.GetScrollMaxY()
+    scrolldown = false
+    if sy <= 0 or prevmaxy == sy then
+        scrolldown = true
+    end
+
     -- constantly check the memory addresses for new messages 
     for i = 0, 58, 2 do -- 30 messages, 0 indexed
         --[[
@@ -265,10 +274,13 @@ local function get_team_log()
         last_ten_messages = get_last_hundred_elements(ordered_messages)
         for index, value in ipairs(last_ten_messages) do
             imgui.TextWrapped(value)
-            if scrolldown then
-                imgui.SetScrollY(imgui.GetScrollMaxY())
-            end
         end
+        -- scrolldown window on new chat
+        if scrolldown then
+            imgui.SetScrollY(imgui.GetScrollMaxY())
+        end
+        -- set prev state for scroll
+        prevmaxy = imgui.GetScrollMaxY()
     end
 end
 
