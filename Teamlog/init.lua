@@ -241,6 +241,10 @@ local function get_team_log()
             3. If the key's value changes from the previous element:
             4. Append the element to a growing list. 
             5. (OPTIONAL) add timestamps to each message. 
+
+            TODO: optimize this algorithm, make it run at 1Hz instead
+            of 30Hz, make it read only single memory at a time instead
+            of all 30.
         ]]
         -- first read the mem addr for the message
         local message = descud_message(pso.read_wstr(0x00A98600+ 0x90*i, MAX_MSG_SIZE))
@@ -258,7 +262,7 @@ local function get_team_log()
         -- Do nothing 
     else
         -- only if there are messages we attempt to render
-        last_ten_messages = get_last_ten_elements(ordered_messages)
+        last_ten_messages = get_last_hundred_elements(ordered_messages)
         for index, value in ipairs(last_ten_messages) do
             imgui.TextWrapped(value)
             if scrolldown then
@@ -268,8 +272,8 @@ local function get_team_log()
     end
 end
 
-function get_last_ten_elements(input_table)
-    -- get the last 10 elements of a table
+function get_last_hundred_elements(input_table)
+    -- get the last 100 elements of a table
     local length = #input_table
     local result = {}
     local start_index = math.max(length - 99, 1)
