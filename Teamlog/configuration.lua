@@ -11,11 +11,24 @@ local function ConfigurationWindow(configuration)
 
     local _showWindowSettings = function()
         local success
+        
         local anchorList =
         {
             "Top Left (Disabled)", "Left", "Bottom Left",
             "Top", "Center", "Bottom",
             "Top Right", "Right", "Bottom Right",
+        }
+
+        local colorList = 
+        {
+            "White",
+            "Red",
+            "Green",
+            "Blue",
+            "Cyan",
+            "Magenta",
+            "Yellow",
+            "Orange"
         }
 
         if imgui.TreeNodeEx("General", "DefaultOpen") then
@@ -75,6 +88,20 @@ local function ConfigurationWindow(configuration)
                 this.changed = true
             end
 
+            if imgui.Checkbox("Add Timestamps (requires reload)", _configuration.clTimestamps) then
+                _configuration.clTimestamps = not _configuration.clTimestamps
+                this.changed = true
+            end
+
+            imgui.Text("Text Color")
+            imgui.PushItemWidth(200)
+            success, _configuration.clTextColor = imgui.Combo("TextColor", _configuration.clTextColor, colorList, table.getn(colorList))
+            imgui.PopItemWidth()
+            if success then
+                _configuration.clChanged = true
+                this.changed = true
+            end
+
             imgui.Text("Position and Size")
             imgui.PushItemWidth(200)
             success, _configuration.clAnchor = imgui.Combo("Anchor", _configuration.clAnchor, anchorList, table.getn(anchorList))
@@ -83,7 +110,7 @@ local function ConfigurationWindow(configuration)
                 _configuration.clChanged = true
                 this.changed = true
             end
-            
+
             imgui.PushItemWidth(100)
             success, _configuration.clX = imgui.InputInt("X", _configuration.clX)
             imgui.PopItemWidth()

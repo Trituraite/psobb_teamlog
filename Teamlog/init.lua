@@ -1,5 +1,6 @@
 local core_mainmenu = require("core_mainmenu")
 local cfg = require("Teamlog.configuration")
+local lib_helpers = require("solylib.helpers")
 local optionsLoaded, options = pcall(require, "Teamlog.options")
 
 local optionsFileName = "addons/Teamlog/options.lua"
@@ -137,6 +138,7 @@ if optionsLoaded then
     options.clHideWhenSymbolChat      = NotNilOrDefault(options.clHideWhenSymbolChat, true)
     options.clHideWhenMenuUnavailable = NotNilOrDefault(options.clHideWhenMenuUnavailable, true)
     options.clChanged                 = NotNilOrDefault(options.clChanged, false)
+    options.clTextColor               = NotNilOrDefault(options.clTextColor, 1)
     options.clAnchor                  = NotNilOrDefault(options.clAnchor, 1)
     options.clX                       = NotNilOrDefault(options.clX, 50)
     options.clY                       = NotNilOrDefault(options.clY, 50)
@@ -146,6 +148,7 @@ if optionsLoaded then
     options.clNoResize                = NotNilOrDefault(options.clNoResize, "")
     options.clNoMove                  = NotNilOrDefault(options.clNoMove, "")
     options.clTransparentWindow       = NotNilOrDefault(options.clTransparentWindow, false)
+    options.clTimestamps              = NotNilOrDefault(options.clTimestamps, false)
 else
     options =
     {
@@ -159,6 +162,7 @@ else
         clHideWhenSymbolChat = false,
         clHideWhenMenuUnavailable = false,
         clChanged = false,
+        clTextColor = 1,
         clAnchor = 1,
         clX = 50,
         clY = 50,
@@ -168,6 +172,7 @@ else
         clNoResize = "",
         clNoMove = "",
         clTransparentWindow = false,
+        clTimestamps = false,
     }
 end
 
@@ -188,6 +193,7 @@ local function SaveOptions(options)
         io.write(string.format("    clHideWhenSymbolChat = %s,\n", tostring(options.clHideWhenSymbolChat)))
         io.write(string.format("    clHideWhenMenuUnavailable = %s,\n", tostring(options.clHideWhenMenuUnavailable)))
         io.write(string.format("    clChanged = %s,\n", tostring(options.clChanged)))
+        io.write(string.format("    clTextColor = %i,\n", options.clTextColor))
         io.write(string.format("    clAnchor = %i,\n", options.clAnchor))
         io.write(string.format("    clX = %i,\n", options.clX))
         io.write(string.format("    clY = %i,\n", options.clY))
@@ -197,43 +203,29 @@ local function SaveOptions(options)
         io.write(string.format("    clNoResize = \"%s\",\n", options.clNoResize))
         io.write(string.format("    clNoMove = \"%s\",\n", options.clNoMove))
         io.write(string.format("    clTransparentWindow = %s,\n", tostring(options.clTransparentWindow)))
+        io.write(string.format("    clTimestamps = %s,\n", tostring(options.clTimestamps)))
         io.write("}\n")
 
         io.close(file)
     end
 end
 
+local colorTable =
+{
+    [1] = 0xFFFFFFFF,  -- White
+    [2] = 0xFFFF0000,  -- Red
+    [3] = 0xFF00FF00,  -- Green
+    [4] = 0xFF0000FF,  -- Blue
+    [5] = 0xFF00FFFF,  -- Cyan
+    [6] = 0xFFFF00FF,  -- Magenta
+    [7] = 0xFFFFFF00,  -- Yellow
+    [8] = 0xFFFFA500   -- Orange (Kelzan's favorite color)    
+}
 
 local function get_team_log()
-    --[[
-        Gets all the team chat messages.
-        
-        From fuzziqersoftware on psobb disc: 
+    -- get all the team chat messages and render using imgui
 
-        it appears that team chat messages are at 
-        00A98600, which is a list of 30 char16_t[0x90] 
-        buffers
-
-        how did he know this? 
-
-        -- Useful info --
-        Starting Mem Address: 0x00A98600
-        Message length: (mem buffer * bytes) = 0x90 * 16 bits = 0x90 * 2
-        Total num messages: 30
-        Ring buffer: Messages will loop back to starting address after 30th msg
-
-        Helpful links:
-
-        Chatlog source file: 
-        https://github.com/jtuu/psochatlogaddon/blob/master/Chatlog/init.lua
-        Soly's pso API (gets auto imported when .lua file in right directory...)
-        https://github.com/search?q=repo%3ASolybum%2Fpsobbaddonplugin%20read_u32&type=code 
-
-        From testing, it looks like this code runs 30 times every second, or...
-        exactly once a frame? 
-    ]]
-
-    -- scrolling:
+    -- auto scroll down
     local sy = imgui.GetScrollY()
     local sym = imgui.GetScrollMaxY()
     scrolldown = false
@@ -241,39 +233,44 @@ local function get_team_log()
         scrolldown = true
     end
 
-    -- constantly check the memory addresses for new messages 
-    for i = 0, 58, 2 do -- 30 messages, 0 indexed
+    -- read the entire ring buffer, format message, timestamp and render
+    for i = 0, 58, 2 do
         --[[
             --algorithm to go from ring buffer to linear buffer
             1. Read all thirty messages in a loop
             2. Insert the messages into a table (key - value)
             3. If the key's value changes from the previous element:
             4. Append the element to a growing list. 
-            5. (OPTIONAL) add timestamps to each message. 
+            5. Add timestamps to each message when they change.
 
             TODO: optimize this algorithm, make it run at 1Hz instead
             of 30Hz, make it read only single memory at a time instead
-            of all 30.
+            of all 30 - not sure if this is important as other addons
+            just operate at 30Hz...
         ]]
         -- first read the mem addr for the message
-        local message = descud_message(pso.read_wstr(0x00A98600+ 0x90*i, MAX_MSG_SIZE))
+        local message = descud_message(pso.read_wstr(0x00A98600 + 0x90*i, MAX_MSG_SIZE))
         -- if the message has changed, add it to the table of ordered messages
         if chat_memory[i/2+1] ~= message then
-            local timestamped_message = add_timestamp(message)
-            table.insert(ordered_messages, timestamped_message)
+            if options.clTimestamps then
+                local timestamped_message = add_timestamp(message)
+                table.insert(ordered_messages, timestamped_message)
+            else
+                table.insert(ordered_messages, message)
+            end
         end 
         -- update memory here after each cycle as last "known"
         chat_memory[i/2+1] = message
     end
-
-    -- WARNING: trying to render an empty table will crash the game
+    
+    -- render messages
     if #ordered_messages == 0 then
-        -- Do nothing 
+        -- Do nothing - attempting to render an empty table crashes the game 
     else
         -- only if there are messages we attempt to render
         last_ten_messages = get_last_hundred_elements(ordered_messages)
         for index, value in ipairs(last_ten_messages) do
-            imgui.TextWrapped(value)
+            lib_helpers.TextC(true, colorTable[options.clTextColor], value)
         end
         -- scrolldown window on new chat
         if scrolldown then
@@ -374,7 +371,7 @@ local function init()
     return
     {
         name = "TeamLog",
-        version = "0.1.0",
+        version = "0.2.0",
         author = "trituraite",
         present = present
     }
