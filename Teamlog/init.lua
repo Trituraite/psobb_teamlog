@@ -219,8 +219,10 @@ local colorTable =
     [5] = 0xFF00FFFF,  -- Cyan
     [6] = 0xFFFF00FF,  -- Magenta
     [7] = 0xFFFFFF00,  -- Yellow
-    [8] = 0xFFFFA500   -- Orange (Kelzan's favorite color)    
+    [8] = 0xFFFFA500,  -- Orange (Kelzan's favorite color)
+    [9] = 0xFF6f00fe   -- Bright indigo (regular indigo too dark)
 }
+
 
 local function get_team_log()
     -- get all the team chat messages and render using imgui
@@ -270,7 +272,10 @@ local function get_team_log()
         -- only if there are messages we attempt to render
         last_ten_messages = get_last_hundred_elements(ordered_messages)
         for index, value in ipairs(last_ten_messages) do
-            lib_helpers.TextC(true, colorTable[options.clTextColor], value)
+            -- Set text color and render as wrapped
+            local c = lib_helpers.GetColorAsFloats(colorTable[options.clTextColor])
+            imgui.PushStyleColor("Text", c.r, c.g, c.b, c.a)
+            imgui.TextWrapped(value)
         end
         -- scrolldown window on new chat
         if scrolldown then

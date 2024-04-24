@@ -28,7 +28,8 @@ local function ConfigurationWindow(configuration)
             "Cyan",
             "Magenta",
             "Yellow",
-            "Orange"
+            "Orange",
+            "Indigo"
         }
 
         if imgui.TreeNodeEx("General", "DefaultOpen") then
